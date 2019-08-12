@@ -91,13 +91,13 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="S:\New folder\DXTrace.inl">
+    <None Include="DXGetErrorDescription.inl">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="S:\New folder\DXGetErrorString.inl">
+    <None Include="DXGetErrorString.inl">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="S:\New folder\DXGetErrorDescription.inl">
+    <None Include="DXTrace.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>

@@ -188,9 +188,9 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="S:\New folder\DXGetErrorDescription.inl" />
-    <None Include="S:\New folder\DXGetErrorString.inl" />
-    <None Include="S:\New folder\DXTrace.inl" />
+    <None Include="DXGetErrorDescription.inl" />
+    <None Include="DXGetErrorString.inl" />
+    <None Include="DXTrace.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
