@@ -2,6 +2,7 @@
 #include "IncludeWin.h"
 #include "UrielException.h"
 #include "Graphics.h"
+#include "dxerr.h"
 #include <optional>
 #include <memory>
 

@@ -39,6 +39,9 @@
     <ClCompile Include="Graphics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="dxerr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IncludeWin.h">
@@ -65,6 +68,9 @@
     <ClInclude Include="Graphics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="dxerr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="hw3d.rc">
@@ -83,5 +89,16 @@
     <FxCompile Include="PixelShader.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="S:\New folder\DXTrace.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="S:\New folder\DXGetErrorString.inl">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="S:\New folder\DXGetErrorDescription.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
