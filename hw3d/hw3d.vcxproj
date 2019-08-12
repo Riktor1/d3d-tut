@@ -156,12 +156,14 @@
     <ClInclude Include="App.h" />
     <ClInclude Include="dxerr.h" />
     <ClInclude Include="Graphics.h" />
+    <ClInclude Include="GraphicsThrowMacros.h" />
     <ClInclude Include="resource1.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="UrielException.h" />
     <ClInclude Include="IncludeWin.h" />
     <ClInclude Include="Window.h" />
     <ClInclude Include="WindowsMessageMap.h" />
+    <ClInclude Include="WindowsThrowMacors.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="hw3d.rc" />

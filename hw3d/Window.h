@@ -2,24 +2,36 @@
 #include "IncludeWin.h"
 #include "UrielException.h"
 #include "Graphics.h"
-#include "dxerr.h"
+//#include "dxerr.h"
+//#include "GraphicsThrowMacros.h"
+#include "WindowsThrowMacors.h"
 #include <optional>
 #include <memory>
 
 //Creates and destroys window and handles messages
 class Window {
 public:
-	//Exception handler
-	class Exception : public UrielException{
+	//Exception handler BASE class
+	class Exception : public UrielException {
+		using UrielException::UrielException;
 	public:
-		Exception(int line, const char* file, HRESULT hr) noexcept;
-		const char* what() const noexcept override;
-		virtual const char* GetType() const noexcept;
 		static std::string TranslateErrorCode(HRESULT hr) noexcept;
+	};
+	//HrException handler DERIVED class
+	class HrException : public Exception {
+		HrException(int line, const char* file, HRESULT hr) noexcept;
+		const char* what() const noexcept override;
+		const char* GetType() const noexcept override;
 		HRESULT GetErrorCode() const noexcept;
-		std::string GetErrorString() const noexcept;
+		std::string GetErrorDescription() const noexcept;
 	private:
 		HRESULT hr;
+	};
+	//NoGfxException handler DERIVED class
+	class NoGfxException : public Exception {
+	public:
+		using Exception::Exception;
+		const char* GetType() const noexcept override;
 	};
 private:
 	//Singleton method
@@ -63,6 +75,3 @@ private:
 	std::unique_ptr<Graphics> pGfx;
 };
 
-//error exception helper macro
-#define CHWND_EXCEPT(hr) Window::Exception(__LINE__, __FILE__, hr)
-#define CHWND_LAST_EXCEPT() Window::Exception(__LINE__, __FILE__, GetLastError());

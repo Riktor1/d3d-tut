@@ -1,5 +1,7 @@
 #include "Window.h"
+#include "UrielException.h"
 #include "resource1.h"
+#include "WindowsThrowMacors.h"
 #include <sstream>
 
 
@@ -37,44 +39,51 @@ HINSTANCE Window::WindowClass::GetInstance() noexcept {
 }
 
 //Window Exception class functions *******************************************
-Window::Exception::Exception(int line, const char* file, HRESULT hr) noexcept
-	: UrielException(line, file), hr(hr){
-}
-
-const char* Window::Exception::what() const noexcept {
-	std::ostringstream oss;
-	oss << GetType() << std::endl
-		<< "[Error Code] " << GetErrorCode() << std::endl
-		<< "[Description] " << GetErrorString() << std::endl
-		<< GetOriginalString();
-	whatBuffer = oss.str(); //passes string output to buffer because string stream is deleted automatically after this function
-	return whatBuffer.c_str();
-}
-
-const char* Window::Exception::GetType() const noexcept {
-	return "Uriel Window Exception";
-}
-
 std::string Window::Exception::TranslateErrorCode(HRESULT hr) noexcept {
 	char* pMsgBuf = nullptr;
 	DWORD nMsgLen = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |  //lenght of error string
 		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		nullptr, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), 
-		reinterpret_cast<LPSTR>(&pMsgBuf),0,nullptr);
+		nullptr, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		reinterpret_cast<LPSTR>(&pMsgBuf), 0, nullptr);
 	if(nMsgLen == 0) {
 		return "Unidentified error code";
 	}
 	std::string errorString = pMsgBuf;
+	//free window buffer
 	LocalFree(pMsgBuf);
 	return errorString;
 }
 
-HRESULT Window::Exception::GetErrorCode() const noexcept {
+Window::HrException::HrException(int line, const char* file, HRESULT hr) noexcept
+	: Exception(line, file), hr(hr)
+{
+}
+
+const char* Window::HrException::what() const noexcept {
+	std::ostringstream oss;
+	oss << GetType() << std::endl
+		<< "[Error Code] 0x" << std::hex << std::uppercase << GetErrorCode()
+		<< std::dec << " (" << (unsigned long)GetErrorCode() << ")" << std::endl
+		<< "[Description]" << GetErrorDescription() << std::endl
+		<< GetOriginalString();
+	whatBuffer = oss.str();
+	return whatBuffer.c_str();
+}
+
+const char* Window::HrException::GetType() const noexcept {
+	return "Uriel Window Exception";
+}
+
+HRESULT Window::HrException::GetErrorCode() const noexcept {
 	return hr;
 }
 
-std::string Window::Exception::GetErrorString() const noexcept {
-	return TranslateErrorCode(hr);
+std::string Window::HrException::GetErrorDescription() const noexcept {
+	return Exception::TranslateErrorCode(hr);
+}
+
+const char* Window::NoGfxException::GetType() const noexcept {
+	return "Uriel Window Exception [No Graphics]";
 }
 
 //Window class functions *******************************************
@@ -139,6 +148,9 @@ std::optional<int> Window::ProcessMessages() {
 
 Graphics& Window::Gfx()
 {
+	if(!pGfx) {
+		throw CHWND_NOGFX_EXCEPT();
+	}
 	return *pGfx;
 }
 
