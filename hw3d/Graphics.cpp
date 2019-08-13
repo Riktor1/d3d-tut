@@ -10,7 +10,8 @@ namespace wrl = Microsoft::WRL; //an alias for the namespace. *DO NOT use global
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
 
-
+#define GFX_THROW_FAILED(hrcall) if(FAILED(hr = (hrcall))) throw Graphics::HrException(__LINE__,__FILE__, hr);
+#define GFX_DEVICE_REMOVED_EXCEPT(hr) Graphics::DeviceRemovedException(__LINE__,__FILE__, (hr));
 
 Graphics::Graphics(HWND hWnd){
 
@@ -81,7 +82,7 @@ Graphics::Graphics(HWND hWnd){
 void Graphics::EndFrame() {
 	HRESULT hr;
 	if(FAILED(hr = pSwap->Present(1u, 0u))) { //present frame to buffer
-		if(DXGI_ERROR_DEVICE_REMOVED) {
+		if(hr == DXGI_ERROR_DEVICE_REMOVED) {
 			throw GFX_DEVICE_REMOVED_EXCEPT(pDevice->GetDeviceRemovedReason());
 		}else {
 			GFX_THROW_FAILED(hr);
