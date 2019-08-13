@@ -10,8 +10,8 @@ namespace wrl = Microsoft::WRL; //an alias for the namespace. *DO NOT use global
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
 
-#define GFX_THROW_FAILED(hrcall) if(FAILED(hr = (hrcall))) throw Graphics::HrException(__LINE__,__FILE__, hr);
-#define GFX_DEVICE_REMOVED_EXCEPT(hr) Graphics::DeviceRemovedException(__LINE__,__FILE__, (hr));
+//#define GFX_THROW_FAILED(hrcall) if(FAILED(hr = (hrcall))) throw Graphics::HrException(__LINE__,__FILE__, hr);
+//#define GFX_DEVICE_REMOVED_EXCEPT(hr) Graphics::DeviceRemovedException(__LINE__,__FILE__, (hr));
 
 Graphics::Graphics(HWND hWnd){
 
@@ -33,10 +33,15 @@ Graphics::Graphics(HWND hWnd){
 	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	sd.Flags = 0;
 
+	UINT swapCreateFlags = 0u;
+#ifndef NDEBUG
+	swapCreateFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
 	HRESULT hr; //used for debug error checking
 
 	//create device and front/back buffers, and swap chain and rendering context
-	GFX_THROW_FAILED(D3D11CreateDeviceAndSwapChain(
+	GFX_THROW_INFO(D3D11CreateDeviceAndSwapChain(
 		nullptr,
 		D3D_DRIVER_TYPE_HARDWARE,
 		nullptr,
@@ -54,38 +59,26 @@ Graphics::Graphics(HWND hWnd){
 	//gain access to texture subresource in swap chain(back buffer)
 	//ID3D11Resource* pBackBuffer = nullptr;
 	wrl::ComPtr<ID3D11Resource> pBackBuffer;
-	GFX_THROW_FAILED(pSwap->GetBuffer(0, __uuidof(ID3D11Resource), &pBackBuffer));
-	GFX_THROW_FAILED(pDevice->CreateRenderTargetView(
+	GFX_THROW_INFO(pSwap->GetBuffer(0, __uuidof(ID3D11Resource), &pBackBuffer));
+	GFX_THROW_INFO(pDevice->CreateRenderTargetView(
 		pBackBuffer.Get(),
 		nullptr,
 		&pTarget
 	));
-	pBackBuffer->Release();
 }
-
-//Graphics::~Graphics() {
-//	//Try and release Children before Parent, but doesn't matter though
-//	if(pTarget != nullptr) {
-//		pTarget->Release();
-//	}
-//	if(pContext != nullptr) {
-//		pContext->Release();
-//	}
-//	if(pSwap != nullptr) {
-//		pSwap->Release();
-//	}
-//	if(pDevice != nullptr) {
-//		pDevice->Release();
-//	}
-//}
 
 void Graphics::EndFrame() {
 	HRESULT hr;
+
+#ifndef NDEBUG
+	infoManager.Set();
+#endif
+
 	if(FAILED(hr = pSwap->Present(1u, 0u))) { //present frame to buffer
 		if(hr == DXGI_ERROR_DEVICE_REMOVED) {
 			throw GFX_DEVICE_REMOVED_EXCEPT(pDevice->GetDeviceRemovedReason());
 		}else {
-			GFX_THROW_FAILED(hr);
+			GFX_EXCEPT(hr);
 		}
 	}
 }
@@ -96,9 +89,18 @@ void Graphics::ClearBuffer(float red, float green, float blue) noexcept {
 }
 
 //Graphics Exceptions
-Graphics::HrException::HrException(int line, const char* file, HRESULT hr) noexcept
+Graphics::HrException::HrException(int line, const char* file, HRESULT hr, std::vector<std::string> infoMsgs) noexcept
 	: Exception(line, file), hr(hr)
 {
+	//join all info messages with newlines into single string
+	for(const auto& m : infoMsgs) {
+		info += m;
+		info.push_back('\n');
+	}
+	//remove final newline if exists
+	if(!info.empty()) {
+		info.pop_back();
+	}
 }
 
 const char* Graphics::HrException::what() const noexcept {
@@ -107,8 +109,13 @@ const char* Graphics::HrException::what() const noexcept {
 		<< "[Error Code] 0x" << std::hex << std::uppercase << GetErrorCode()
 		<< std::dec << " (" << (unsigned long)GetErrorCode() << ")" << std::endl
 		<< "[Error String]" << GetErrorString() << std::endl
-		<< "[Description]" << GetErrorDescription() << std::endl 
-		<< GetOriginalString();
+		<< "[Description]" << GetErrorDescription() << std::endl;
+		
+		if(!info.empty()) {
+			oss << "\n[Error Info]\n" << GetErrorInfo() << std::endl << std::endl;
+		}
+
+		oss << GetOriginalString();
 	whatBuffer = oss.str();
 	return whatBuffer.c_str();
 }
@@ -130,12 +137,17 @@ std::string Graphics::HrException::GetErrorDescription() const noexcept {
 	DXGetErrorDescription(hr, buff, sizeof(buff));
 	return buff;
 }
+std::string Graphics::HrException::GetErrorInfo() const noexcept
+{
+	return info;
+}
 const char* Graphics::DeviceRemovedException::GetType() const noexcept {
 	return "Uriel Graphics Exception [Device Removed] (DXGI_ERROR_DEVICE_REMOVED)";
 }
 
 void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues commands
 	namespace wrl = Microsoft::WRL;
+	HRESULT hr;
 
 	struct Vertex {
 		float x;
@@ -174,14 +186,14 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 	wrl::ComPtr<ID3D11PixelShader> pPixelShader;
 	wrl::ComPtr<ID3DBlob> pBlob;
 	D3DReadFileToBlob(L"PixelShader.cso", &pBlob);
-	pDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, &pPixelShader);
+	GFX_THROW_INFO(pDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, &pPixelShader));
 	//bind pixel shader
 	pContext->PSGetShader(&pPixelShader, nullptr, 0u);
 
 	//create vertex shader
 	wrl::ComPtr<ID3D11VertexShader> pVertexShader;
 	D3DReadFileToBlob(L"VertexShader.cso", &pBlob); //make sure shader file output path in the compiler is set to the ProjectDirectory instead of OutputDirectory
-	pDevice->CreateVertexShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, &pVertexShader);
+	GFX_THROW_INFO(pDevice->CreateVertexShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, &pVertexShader));
 	//bind vertex shader
 	pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u); //remember that to get the single-pointer address of a ComPtr you need to use .Get()
 
@@ -191,7 +203,7 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 	//create Input Layout
-	pDevice->CreateInputLayout(ied, (UINT)std::size(ied), pBlob->GetBufferPointer(), pBlob->GetBufferSize(), &pInputLayout);
+	GFX_THROW_INFO(pDevice->CreateInputLayout(ied, (UINT)std::size(ied), pBlob->GetBufferPointer(), pBlob->GetBufferSize(), &pInputLayout));
 	//bind input layout
 	pContext->IASetInputLayout(pInputLayout.Get());
 
