@@ -157,8 +157,8 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 	//create vertex buffer (one 2D triangle at center of screen)
 	const Vertex vertices[] = {
 		{0.0f, 0.5f},
-		{0.5f, -0.5f},
-		{-0.5f, -0.5f},
+		{0.5f, -0.2f},
+		{-0.5f, -0.2f},
 	};
 
 	wrl::ComPtr<ID3D11Buffer> pVertextBuffer;
@@ -175,7 +175,7 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 	sd.pSysMem = vertices;
 
 	//Create buffer
-	pDevice->CreateBuffer(&bd, &sd, &pVertextBuffer);
+	GFX_THROW_INFO(pDevice->CreateBuffer(&bd, &sd, &pVertextBuffer));
 
 	//bind vertex buffer to pipeline
 	const UINT stride = sizeof(Vertex);
@@ -185,10 +185,10 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 	//create pixel shader
 	wrl::ComPtr<ID3D11PixelShader> pPixelShader;
 	wrl::ComPtr<ID3DBlob> pBlob;
-	D3DReadFileToBlob(L"PixelShader.cso", &pBlob);
+	GFX_THROW_INFO(D3DReadFileToBlob(L"PixelShader.cso", &pBlob));
 	GFX_THROW_INFO(pDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, &pPixelShader));
 	//bind pixel shader
-	pContext->PSGetShader(&pPixelShader, nullptr, 0u);
+	pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
 
 	//create vertex shader
 	wrl::ComPtr<ID3D11VertexShader> pVertexShader;
@@ -203,12 +203,18 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 	//create Input Layout
-	GFX_THROW_INFO(pDevice->CreateInputLayout(ied, (UINT)std::size(ied), pBlob->GetBufferPointer(), pBlob->GetBufferSize(), &pInputLayout));
+	GFX_THROW_INFO(pDevice->CreateInputLayout(
+		ied, 
+		(UINT)std::size(ied), 
+		pBlob->GetBufferPointer(), 
+		pBlob->GetBufferSize(), 
+		&pInputLayout
+	));
 	//bind input layout
 	pContext->IASetInputLayout(pInputLayout.Get());
 
 	//bind render target
-	pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), nullptr);
+	pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), nullptr); //OutputMerger set render target
 
 	//Set triangle topology list
 	pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
