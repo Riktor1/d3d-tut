@@ -150,16 +150,25 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 	HRESULT hr;
 
 	struct Vertex {
-		float x;
-		float y;
+		struct {
+			float x, y;
+		} pos;
+		struct{
+			unsigned char r, g, b, a; 
+		} color;
 	};
 
 	//create vertex buffer (one 2D triangle at center of screen)
-	const Vertex vertices[] = {
-		{0.0f, 0.5f},
-		{0.5f, -0.2f},
-		{-0.5f, -0.2f},
+	Vertex vertices[] = {
+		{0.0f, 0.5f, 255, 255, 0, 0},
+		{0.5f, -0.5f, 255, 0, 255, 0},
+		{-0.5f, -0.5f, 0, 255, 255, 0},
+
+		
 	};
+	vertices[0].color.r = 0;
+	vertices[0].color.g = 255;
+	vertices[0].color.b = 255;
 
 	wrl::ComPtr<ID3D11Buffer> pVertextBuffer;
 
@@ -200,7 +209,8 @@ void Graphics::DrawTestTriangle() { //pDevice creates stuff and pContext issues 
 	//input (vertex) layout (2D position only)
 	wrl::ComPtr<ID3D11InputLayout> pInputLayout;
 	const D3D11_INPUT_ELEMENT_DESC ied[] = {
-		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 	//create Input Layout
 	GFX_THROW_INFO(pDevice->CreateInputLayout(
