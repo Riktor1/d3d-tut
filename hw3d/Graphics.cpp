@@ -66,6 +66,40 @@ Graphics::Graphics(HWND hWnd){
 		nullptr,
 		&pTarget
 	));
+
+	//create depth stencil state
+	D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+	dsDesc.DepthEnable = TRUE;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	wrl::ComPtr<ID3D11DepthStencilState> pDSState;
+	GFX_THROW_INFO(pDevice->CreateDepthStencilState(&dsDesc, &pDSState));
+	//bind to pipeline
+	pContext->OMSetDepthStencilState(pDSState.Get(), 1u);
+
+	//create depth stencil texture
+	wrl::ComPtr<ID3D11Texture2D> pDepthStencil;
+	D3D11_TEXTURE2D_DESC depDesc = {};
+	depDesc.Width = 800u;
+	depDesc.Height = 600u;
+	depDesc.MipLevels = 1u;
+	depDesc.ArraySize = 1u;
+	depDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	depDesc.SampleDesc.Count = 1u;
+	depDesc.SampleDesc.Quality = 0u;
+	depDesc.Usage = D3D11_USAGE_DEFAULT;
+	depDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	GFX_THROW_INFO(pDevice->CreateTexture2D(&depDesc, nullptr, &pDepthStencil));
+
+	//create view of depth stencil texture
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Texture2D.MipSlice = 0u;
+	GFX_THROW_INFO(pDevice->CreateDepthStencilView(pDepthStencil.Get(), &dsvDesc, &pDSV));
+	
+	//bind depth stencil view to OM
+	pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), pDSV.Get());
 }
 
 void Graphics::EndFrame() {
@@ -87,6 +121,7 @@ void Graphics::EndFrame() {
 void Graphics::ClearBuffer(float red, float green, float blue) noexcept {
 	const float color[] = { red, green, blue, 1.0f };
 	pContext->ClearRenderTargetView(pTarget.Get(), color);
+	pContext->ClearDepthStencilView(pDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0u);
 }
 
 //Graphics Exceptions
@@ -146,34 +181,36 @@ const char* Graphics::DeviceRemovedException::GetType() const noexcept {
 	return "Uriel Graphics Exception [Device Removed] (DXGI_ERROR_DEVICE_REMOVED)";
 }
 
-void Graphics::DrawTestTriangle(float angle) { //pDevice creates stuff and pContext issues commands
+void Graphics::DrawTestTriangle(float angle, float x, float y, float z) { //pDevice creates stuff and pContext issues commands
 
-	dx::XMVECTOR v = dx::XMVectorSet(3.0f, 3.0f, 0.0f, 0.0f);
-	auto result = dx::XMVector4Dot(v, v);
-	auto xx = dx::XMVectorGetX(result);
+	//dx::XMVECTOR v = dx::XMVectorSet(3.0f, 3.0f, 0.0f, 0.0f);
+	//auto result = dx::XMVector3Transform(v, dx::XMMatrixScaling(1.5f, 0.0f, 0.0f));
+	//auto xx = dx::XMVectorGetX(result);
 	HRESULT hr;
 
 	struct Vertex {
 		struct {
-			float x, y;
+			float x, y, z;
 		} pos;
-		struct{
-			unsigned char r, g, b, a; 
-		} color;
+		//struct{
+		//	unsigned char r, g, b, a; 
+		//} color;
 	};
 
 	//Make a vertex buffer
 	Vertex vertices[] = {
-		{0.0f, 0.5f, 255, 0, 0, 0},
-		{0.5f, -0.5f, 255, 0, 255, 0},
-		{-0.5f, -0.5f, 0, 255, 255, 0},
-		{-0.3f, 0.3f, 255, 255, 0, 0},
-		{0.3f, 0.3f, 255, 0, 255, 0},
-		{0.0f, -0.99f, 0, 255, 255, 0},
+		{-1.0f, -1.0f, -1.0f },
+		{ 1.0f, -1.0f, -1.0f },
+		{-1.0f,  1.0f, -1.0f },
+		{ 1.0f,  1.0f, -1.0f },
+		{-1.0f, -1.0f,  1.0f },
+		{ 1.0f, -1.0f,  1.0f },
+		{-1.0f,  1.0f,  1.0f },
+		{ 1.0f,  1.0f,  1.0f },
 	};
-	vertices[0].color.r = 0;
-	vertices[0].color.g = 0;
-	vertices[0].color.b = 255;
+	//vertices[0].color.r = 0;
+	//vertices[0].color.g = 0;
+	//vertices[0].color.b = 255;
 
 	wrl::ComPtr<ID3D11Buffer> pVertextBuffer;
 	D3D11_BUFFER_DESC bd = {};
@@ -194,10 +231,12 @@ void Graphics::DrawTestTriangle(float angle) { //pDevice creates stuff and pCont
 
 	//Make an index buffer
 	const unsigned short indices[] = {
-		0, 1, 2,
-		0, 2, 3,
-		0, 4, 1,
-		2, 1, 5
+		0,2,1, 2,3,1,
+		1,3,5, 3,7,5,
+		2,6,3, 3,6,7,
+		4,5,7, 4,7,6,
+		0,4,2, 2,4,6,
+		0,1,4, 1,5,4
 	};
 	
 	wrl::ComPtr<ID3D11Buffer> pIndexBuffer;
@@ -226,10 +265,10 @@ void Graphics::DrawTestTriangle(float angle) { //pDevice creates stuff and pCont
 			//0.0f,						  0.0f,		       1.0f,  0.0f,
 			//0.0f,						  0.0f,			   0.0f,  1.0f,
 			dx::XMMatrixTranspose(
-				dx::XMMatrixMultiply(
-					dx::XMMatrixRotationZ(angle),
-					dx::XMMatrixScaling(3.0f / 4.0f, 1.0f, 1.0f)
-				)
+				dx::XMMatrixRotationZ(angle) *
+				dx::XMMatrixRotationX(angle) *
+				dx::XMMatrixTranslation(x, y, z) *
+				dx::XMMatrixPerspectiveLH(1.0f, 3.0f/4.0f, 0.5f, 10.0f)
 			)
 		}
 	};
@@ -246,6 +285,38 @@ void Graphics::DrawTestTriangle(float angle) { //pDevice creates stuff and pCont
 	GFX_THROW_INFO(pDevice->CreateBuffer(&cbd, &csd, &pConstantBuffer));
 	//bind constant buffer
 	pContext->VSSetConstantBuffers(0u, 1u, pConstantBuffer.GetAddressOf());
+
+	struct ConstantBuffer2 {
+		struct {
+			float r, g, b, a;
+		} face_colors[6];
+	};
+
+	const ConstantBuffer2 cb2 = {
+		{
+			{1.0f, 0.0f, 1.0f},
+			{1.0f, 0.0f, 0.0f},
+			{0.0f, 1.0f, 0.0f},
+			{0.0f, 0.0f, 1.0f},
+			{1.0f, 1.0f, 0.0f},
+			{0.0f, 1.0f, 1.0f},
+		}
+	};
+
+	wrl::ComPtr<ID3D11Buffer> pConstantBuffer2;
+	D3D11_BUFFER_DESC cbd2;
+	cbd2.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbd2.ByteWidth = sizeof(cb2);
+	cbd2.CPUAccessFlags = 0u;
+	cbd2.MiscFlags = 0u;
+	cbd2.StructureByteStride = 0u;
+	cbd2.Usage = D3D11_USAGE_DEFAULT;
+	D3D11_SUBRESOURCE_DATA cbs2 = {};
+	cbs2.pSysMem = &cb2;
+	GFX_THROW_INFO(pDevice->CreateBuffer(&cbd2, &cbs2, &pConstantBuffer2));
+	//bind constant buffer 2
+	pContext->PSSetConstantBuffers(0u, 1u, pConstantBuffer2.GetAddressOf());
+
 
 
 
@@ -267,8 +338,8 @@ void Graphics::DrawTestTriangle(float angle) { //pDevice creates stuff and pCont
 	//input (vertex) layout (2D position only)
 	wrl::ComPtr<ID3D11InputLayout> pInputLayout;
 	const D3D11_INPUT_ELEMENT_DESC ied[] = {
-		{"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		//{"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 	//create Input Layout
 	GFX_THROW_INFO(pDevice->CreateInputLayout(
@@ -282,7 +353,7 @@ void Graphics::DrawTestTriangle(float angle) { //pDevice creates stuff and pCont
 	pContext->IASetInputLayout(pInputLayout.Get());
 
 	//bind render target
-	pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), nullptr); //OutputMerger set render target
+	//pContext->OMSetRenderTargets(1u, pTarget.GetAddressOf(), nullptr); //OutputMerger set render target
 
 	//Set triangle topology list
 	pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
